@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Redress — Card Dispute &amp; Fraud Resolution</title>
+<style>
+  :root {
+    --bg: #0b0f19;
+    --panel: #121826;
+    --panel-locked: #0e1320;
+    --line: #232c3f;
+    --ink: #e6ebf5;
+    --ink-soft: #8b96ac;
+    --accent: #22d3ee;
+    --accent-dim: #0e7490;
+    --warn: #f59e0b;
+    --danger: #f87171;
+    --ok: #34d399;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.55;
+  }
+  header {
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+  }
+  header .wordmark { font-weight: 800; font-size: 1.3rem; letter-spacing: -.02em; color: var(--accent); }
+  header .tag { color: var(--ink-soft); font-size: .9rem; }
+  .shell {
+    max-width: 1100px; margin: 0 auto; padding: 28px 20px 80px;
+    display: grid; grid-template-columns: 1fr 300px; gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 860px) { .shell { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--line);
+    border-radius: var(--radius); padding: 22px; margin-bottom: 18px;
+    transition: opacity .2s, border-color .2s;
+  }
+  .panel.locked { background: var(--panel-locked); opacity: .45; pointer-events: none; }
+  .panel.active { border-left-color: var(--accent); }
+  .panel.done { border-left-color: var(--ok); }
+  .panel h2 { margin: 0 0 4px; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
+  .panel .badge-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%; background: var(--line);
+    font-size: .75rem; font-weight: 700; color: var(--ink-soft);
+  }
+  .panel.done .badge-num { background: var(--ok); color: #06251c; }
+  .panel .sub { color: var(--ink-soft); font-size: .87rem; margin: 0 0 16px; }
+
+  label { display: block; font-weight: 600; margin: 14px 0 4px; font-size: .87rem; color: var(--ink-soft); }
+  input[type="text"], input[type="number"], input[type="date"], textarea {
+    width: 100%; padding: 10px 12px; background: #0d1220; border: 1px solid var(--line);
+    border-radius: 8px; font-size: .95rem; color: var(--ink); font-family: inherit;
+  }
+  input:focus, textarea:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 80px; }
+  .error { color: var(--danger); font-size: .82rem; margin-top: 4px; min-height: 1em; }
+  .hint { color: var(--ink-soft); font-size: .82rem; margin-top: 4px; }
+
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .row > * { flex: 1; min-width: 160px; }
+
+  button {
+    background: var(--accent); color: #06232b; border: none; cursor: pointer;
+    padding: 11px 20px; border-radius: 8px; font-size: .92rem; font-weight: 700;
+  }
+  button:hover { background: #67e8f9; }
+  button:disabled { background: var(--line); color: var(--ink-soft); cursor: not-allowed; }
+  button.link { background: transparent; color: var(--accent); padding: 4px 0; font-weight: 600; text-decoration: underline; }
+
+  .txn-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+  .txn-option {
+    display: flex; justify-content: space-between; align-items: center;
+    border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; cursor: pointer;
+  }
+  .txn-option:hover { border-color: var(--accent-dim); }
+  .txn-option.selected { border-color: var(--accent); background: #0f2530; }
+  .txn-option.disabled { opacity: .4; cursor: not-allowed; }
+  .txn-option .merchant { font-weight: 700; }
+  .txn-option .meta { color: var(--ink-soft); font-size: .82rem; }
+  .txn-option .amount { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  .reason-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  @media (max-width: 500px) { .reason-grid { grid-template-columns: 1fr; } }
+  .reason-card {
+    border: 1px solid var(--line); border-radius: 8px; padding: 14px; cursor: pointer;
+  }
+  .reason-card:hover { border-color: var(--accent-dim); }
+  .reason-card.selected { border-color: var(--accent); background: #0f2530; }
+  .reason-card .title { font-weight: 700; font-size: .92rem; }
+  .reason-card .desc { color: var(--ink-soft); font-size: .8rem; margin-top: 2px; }
+
+  .conditional { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line); }
+  .hidden { display: none; }
+
+  .summary-panel {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 20px; position: sticky; top: 20px;
+  }
+  .summary-panel h3 { margin: 0 0 14px; font-size: .82rem; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); }
+  .summary-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: .88rem; }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-row .k { color: var(--ink-soft); }
+  .summary-row .v { font-weight: 700; text-align: right; }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: .74rem; font-weight: 700; }
+  .pill.high { background: #3a1620; color: var(--danger); }
+  .pill.standard { background: #16233a; color: var(--accent); }
+
+  .confirm-panel { border-left-color: var(--ok) !important; text-align: center; }
+  .confirm-panel .case-ref { font-size: 1.5rem; font-weight: 800; color: var(--ok); letter-spacing: 1px; margin: 10px 0; }
+</style>
+</head>
+<body>
+<header>
+  <span class="wordmark">Redress</span>
+  <span class="tag">Meridian Card Services — Dispute &amp; Fraud Resolution Center</span>
+</header>
+
+<div class="shell">
+  <main>
+    <!-- PANEL 1 — VERIFY -->
+    <section class="panel active" id="panel-verify" data-testid="panel-verify">
+      <h2><span class="badge-num" id="num-verify">1</span> Verify your card</h2>
+      <p class="sub">We'll use this to pull up your recent transactions.</p>
+
+      <div class="row">
+        <div>
+          <label for="card-last4">Last 4 digits of card</label>
+          <input type="text" id="card-last4" data-testid="card-last4" maxlength="4" placeholder="4821" />
+          <div class="error" id="err-card-last4" data-testid="err-card-last4"></div>
+        </div>
+        <div>
+          <label for="zip-code">Billing ZIP / postal code</label>
+          <input type="text" id="zip-code" data-testid="zip-code" placeholder="94107" />
+          <div class="error" id="err-zip-code" data-testid="err-zip-code"></div>
+        </div>
+      </div>
+      <div style="margin-top:16px;">
+        <button id="find-transactions" data-testid="find-transactions">Find my transactions</button>
+      </div>
+    </section>
+
+    <!-- PANEL 2 — TRANSACTION -->
+    <section class="panel locked" id="panel-transaction" data-testid="panel-transaction">
+      <h2><span class="badge-num" id="num-transaction">2</span> Select the transaction you're disputing</h2>
+      <p class="sub">Only transactions from the last 90 days can be disputed here.</p>
+      <div class="txn-list" id="txn-list"></div>
+      <div class="error" id="err-transaction" data-testid="err-transaction"></div>
+    </section>
+
+    <!-- PANEL 3 — REASON -->
+    <section class="panel locked" id="panel-reason" data-testid="panel-reason">
+      <h2><span class="badge-num" id="num-reason">3</span> Why are you disputing this charge?</h2>
+      <div class="reason-grid">
+        <div class="reason-card" id="reason-card-fraud" data-testid="reason-fraud">
+          <div class="title">Unauthorized / Fraud</div>
+          <div class="desc">I didn't make or authorize this charge.</div>
+        </div>
+        <div class="reason-card" id="reason-card-billing" data-testid="reason-billing">
+          <div class="title">Billing error</div>
+          <div class="desc">I was charged twice, or the wrong amount.</div>
+        </div>
+        <div class="reason-card" id="reason-card-goods" data-testid="reason-goods">
+          <div class="title">Goods not received</div>
+          <div class="desc">I paid but the order never arrived.</div>
+        </div>
+        <div class="reason-card" id="reason-card-subscription" data-testid="reason-subscription">
+          <div class="title">Cancelled subscription</div>
+          <div class="desc">I was charged after cancelling.</div>
+        </div>
+      </div>
+      <div class="error" id="err-reason" data-testid="err-reason"></div>
+
+      <!-- Conditional: goods not received -->
+      <div class="conditional hidden" id="cond-goods">
+        <label for="delivery-date">Expected delivery date</label>
+        <input type="date" id="delivery-date" data-testid="delivery-date" />
+        <div class="hint">Must be a date in the past — we can't dispute an order that isn't late yet.</div>
+        <div class="error" id="err-delivery-date" data-testid="err-delivery-date"></div>
+      </div>
+
+      <!-- Conditional: cancelled subscription -->
+      <div class="conditional hidden" id="cond-subscription">
+        <label for="cancellation-ref">Cancellation confirmation number</label>
+        <input type="text" id="cancellation-ref" data-testid="cancellation-ref" placeholder="CNL-88213" />
+        <div class="error" id="err-cancellation-ref" data-testid="err-cancellation-ref"></div>
+      </div>
+
+      <!-- Conditional: high-value secondary verification -->
+      <div class="conditional hidden" id="cond-secondary">
+        <label for="secondary-ssn4">Charges over $500 need extra verification — last 4 of SSN</label>
+        <input type="text" id="secondary-ssn4" data-testid="secondary-ssn4" maxlength="4" placeholder="0000" />
+        <div class="error" id="err-secondary-ssn4" data-testid="err-secondary-ssn4"></div>
+      </div>
+
+      <div style="margin-top:16px;">
+        <button id="confirm-reason" data-testid="confirm-reason">Continue</button>
+      </div>
+    </section>
+
+    <!-- PANEL 4 — EVIDENCE -->
+    <section class="panel locked" id="panel-evidence" data-testid="panel-evidence">
+      <h2><span class="badge-num" id="num-evidence">4</span> Tell us what happened</h2>
+      <label for="dispute-description">Description (at least 20 characters)</label>
+      <textarea id="dispute-description" data-testid="dispute-description" placeholder="Describe what happened, in your own words..."></textarea>
+      <div class="error" id="err-dispute-description" data-testid="err-dispute-description"></div>
+      <div style="margin-top:16px;">
+        <button id="confirm-evidence" data-testid="confirm-evidence">Continue to review</button>
+      </div>
+    </section>
+
+    <!-- PANEL 5 — REVIEW & SUBMIT -->
+    <section class="panel locked" id="panel-review" data-testid="panel-review">
+      <h2><span class="badge-num" id="num-review">5</span> Review &amp; submit your case</h2>
+      <div class="summary-row"><span class="k">Case priority</span><span class="v" id="review-priority" data-testid="review-priority">—</span></div>
+      <div class="summary-row"><span class="k">Provisional credit</span><span class="v" id="review-credit" data-testid="review-credit">—</span></div>
+      <div class="error" id="err-submit" data-testid="err-submit"></div>
+      <div style="margin-top:16px;">
+        <button id="submit-case" data-testid="submit-case">Submit dispute case</button>
+      </div>
+    </section>
+
+    <!-- CONFIRMATION -->
+    <section class="panel confirm-panel hidden" id="panel-confirmation" data-testid="panel-confirmation">
+      <span class="pill standard" data-testid="confirmation-badge">Case filed</span>
+      <h2 style="justify-content:center;">Your case has been opened</h2>
+      <div class="case-ref" id="case-reference" data-testid="case-reference"></div>
+      <div class="summary-row"><span class="k">Provisional credit issued</span><span class="v" id="final-provisional-credit" data-testid="final-provisional-credit"></span></div>
+    </section>
+  </main>
+
+  <aside class="summary-panel" data-testid="live-summary">
+    <h3>Case summary</h3>
+    <div class="summary-row"><span class="k">Transaction</span><span class="v" id="summary-transaction" data-testid="summary-transaction">—</span></div>
+    <div class="summary-row"><span class="k">Reason</span><span class="v" id="summary-reason" data-testid="summary-reason">—</span></div>
+    <div class="summary-row"><span class="k">Priority</span><span class="v" id="summary-priority" data-testid="summary-priority">—</span></div>
+    <div class="summary-row"><span class="k">Provisional credit</span><span class="v" id="summary-credit" data-testid="summary-credit">—</span></div>
+    <button class="link hidden" id="change-transaction" data-testid="change-transaction">Change selected transaction</button>
+  </aside>
+</div>
+
+<script>
+// ── Mock transaction data (dates computed relative to "today" so the demo
+// stays valid regardless of when it's run) ─────────────────────────────────
+function daysAgo(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d;
+}
+const TRANSACTIONS = [
+  { id: "t1", merchant: "Home Decor Direct", amount: 128.75, date: daysAgo(3) },
+  { id: "t2", merchant: "Vertex Electronics", amount: 1299.00, date: daysAgo(18) },
+  { id: "t3", merchant: "Bright Fitness Studio", amount: 89.00, date: daysAgo(45) },
+  { id: "t4", merchant: "CloudStream Plus", amount: 15.99, date: daysAgo(8) },
+  { id: "t5", merchant: "Summit Hardware", amount: 610.00, date: daysAgo(75) },
+  { id: "t6", merchant: "Aurora Bookstore", amount: 22.00, date: daysAgo(95) },
+];
+const DISPUTE_WINDOW_DAYS = 90;
+const CREDIT_WINDOW_DAYS = 60;
+const HIGH_VALUE_THRESHOLD = 500;
+const HIGH_PRIORITY_AMOUNT = 1000;
+const PROVISIONAL_CREDIT_CAP = 1000;
+
+const state = {
+  verified: false, selectedTxn: null, reason: null,
+  deliveryDate: "", cancellationRef: "", secondarySsn4: "",
+  description: "", priority: null, provisionalCredit: 0, caseReference: null,
+};
+
+const $ = (id) => document.getElementById(id);
+const money = (n) => "$" + n.toFixed(2);
+const fmtDate = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+const daysBetween = (d) => Math.floor((new Date() - d) / 86400000);
+
+function setPanelState(id, cls) {
+  const el = $(id);
+  el.classList.remove("locked", "active", "done");
+  el.classList.add(cls);
+}
+
+// ── Panel 1 — verify ────────────────────────────────────────────────────────
+$("find-transactions").addEventListener("click", () => {
+  $("err-card-last4").textContent = "";
+  $("err-zip-code").textContent = "";
+  let ok = true;
+  const last4 = $("card-last4").value.trim();
+  const zip = $("zip-code").value.trim();
+  if (!/^\d{4}$/.test(last4)) { $("err-card-last4").textContent = "Enter the last 4 digits of your card."; ok = false; }
+  if (!/^[A-Za-z0-9]{3,10}$/.test(zip)) { $("err-zip-code").textContent = "Enter a valid billing ZIP/postal code."; ok = false; }
+  if (!ok) return;
+
+  state.verified = true;
+  setPanelState("panel-verify", "done");
+  renderTransactions();
+  setPanelState("panel-transaction", "active");
+});
+
+// ── Panel 2 — transaction selection (AC: 90-day dispute window) ────────────
+function renderTransactions() {
+  const list = $("txn-list");
+  list.innerHTML = "";
+  TRANSACTIONS.forEach(txn => {
+    const withinWindow = daysBetween(txn.date) <= DISPUTE_WINDOW_DAYS;
+    const div = document.createElement("div");
+    div.className = "txn-option" + (withinWindow ? "" : " disabled");
+    div.dataset.testid = "txn-" + txn.id;
+    div.setAttribute("data-testid", "txn-" + txn.id);
+    div.innerHTML = `
+      <div>
+        <div class="merchant">${txn.merchant}</div>
+        <div class="meta">${fmtDate(txn.date)}${withinWindow ? "" : " · outside the 90-day dispute window"}</div>
+      </div>
+      <div class="amount">${money(txn.amount)}</div>`;
+    if (withinWindow) {
+      div.addEventListener("click", () => selectTransaction(txn));
+    }
+    list.appendChild(div);
+  });
+}
+
+function selectTransaction(txn) {
+  state.selectedTxn = txn;
+  document.querySelectorAll(".txn-option").forEach(el => el.classList.remove("selected"));
+  document.querySelector(`[data-testid="txn-${txn.id}"]`).classList.add("selected");
+  $("err-transaction").textContent = "";
+  $("change-transaction").classList.remove("hidden");
+  updateSummary();
+
+  // Reset downstream state when a (new) transaction is chosen
+  resetFrom("reason");
+  setPanelState("panel-transaction", "done");
+  setPanelState("panel-reason", "active");
+}
+
+$("change-transaction").addEventListener("click", () => {
+  resetFrom("transaction");
+  setPanelState("panel-transaction", "active");
+  ["panel-reason", "panel-evidence", "panel-review"].forEach(id => setPanelState(id, "locked"));
+  $("panel-confirmation").classList.add("hidden");
+  window.scrollTo({ top: $("panel-transaction").offsetTop - 20, behavior: "smooth" });
+});
+
+function resetFrom(scope) {
+  if (scope === "transaction") {
+    state.selectedTxn = null;
+    document.querySelectorAll(".txn-option").forEach(el => el.classList.remove("selected"));
+  }
+  state.reason = null;
+  state.deliveryDate = ""; state.cancellationRef = ""; state.secondarySsn4 = "";
+  document.querySelectorAll(".reason-card").forEach(el => el.classList.remove("selected"));
+  ["cond-goods", "cond-subscription", "cond-secondary"].forEach(id => $(id).classList.add("hidden"));
+  $("delivery-date").value = ""; $("cancellation-ref").value = ""; $("secondary-ssn4").value = "";
+  $("dispute-description").value = "";
+  updateSummary();
+}
+
+// ── Panel 3 — reason (AC: category-conditional fields, high-value gate) ────
+const REASON_CARDS = { fraud: "reason-card-fraud", billing: "reason-card-billing", goods: "reason-card-goods", subscription: "reason-card-subscription" };
+Object.entries(REASON_CARDS).forEach(([reason, elId]) => {
+  $(elId).addEventListener("click", () => selectReason(reason));
+});
+
+function selectReason(reason) {
+  state.reason = reason;
+  Object.values(REASON_CARDS).forEach(id => $(id).classList.remove("selected"));
+  $(REASON_CARDS[reason]).classList.add("selected");
+  $("err-reason").textContent = "";
+
+  $("cond-goods").classList.toggle("hidden", reason !== "goods");
+  $("cond-subscription").classList.toggle("hidden", reason !== "subscription");
+
+  const amount = state.selectedTxn ? state.selectedTxn.amount : 0;
+  $("cond-secondary").classList.toggle("hidden", amount <= HIGH_VALUE_THRESHOLD);
+
+  updateSummary();
+}
+
+$("confirm-reason").addEventListener("click", () => {
+  ["err-reason", "err-delivery-date", "err-cancellation-ref", "err-secondary-ssn4"].forEach(id => $(id).textContent = "");
+  let ok = true;
+
+  if (!state.reason) { $("err-reason").textContent = "Choose a reason for this dispute."; ok = false; }
+
+  // AC — Goods Not Received requires a delivery date that has already passed
+  if (state.reason === "goods") {
+    const val = $("delivery-date").value;
+    if (!val) { $("err-delivery-date").textContent = "Enter the expected delivery date."; ok = false; }
+    else if (new Date(val) >= new Date(new Date().toDateString())) {
+      $("err-delivery-date").textContent = "Delivery date must be in the past to dispute a non-delivery."; ok = false;
+    } else { state.deliveryDate = val; }
+  }
+
+  // AC — Cancelled Subscription requires a cancellation reference
+  if (state.reason === "subscription") {
+    const val = $("cancellation-ref").value.trim();
+    if (!val) { $("err-cancellation-ref").textContent = "Enter your cancellation confirmation number."; ok = false; }
+    else { state.cancellationRef = val; }
+  }
+
+  // AC — disputes over $500 require secondary verification
+  const amount = state.selectedTxn ? state.selectedTxn.amount : 0;
+  if (amount > HIGH_VALUE_THRESHOLD) {
+    const val = $("secondary-ssn4").value.trim();
+    if (!/^\d{4}$/.test(val)) { $("err-secondary-ssn4").textContent = "Enter the last 4 digits of your SSN to verify this high-value dispute."; ok = false; }
+    else { state.secondarySsn4 = val; }
+  }
+
+  if (!ok) return;
+
+  computeCase();
+  setPanelState("panel-reason", "done");
+  setPanelState("panel-evidence", "active");
+});
+
+// ── Panel 4 — evidence ──────────────────────────────────────────────────────
+$("confirm-evidence").addEventListener("click", () => {
+  $("err-dispute-description").textContent = "";
+  const desc = $("dispute-description").value.trim();
+  if (desc.length < 20) { $("err-dispute-description").textContent = "Add a little more detail (at least 20 characters)."; return; }
+  state.description = desc;
+  setPanelState("panel-evidence", "done");
+  setPanelState("panel-review", "active");
+  $("review-priority").textContent = state.priority === "high" ? "High" : "Standard";
+  $("review-credit").textContent = money(state.provisionalCredit);
+});
+
+// ── Case computation (priority, provisional credit) ────────────────────────
+function computeCase() {
+  const amount = state.selectedTxn.amount;
+
+  // AC — priority is High if amount exceeds $1,000 OR the reason is fraud
+  state.priority = (amount > HIGH_PRIORITY_AMOUNT || state.reason === "fraud") ? "high" : "standard";
+
+  // AC — provisional credit only for fraud disputes filed within 60 days of
+  // the transaction date, capped at $1,000
+  const withinCreditWindow = daysBetween(state.selectedTxn.date) <= CREDIT_WINDOW_DAYS;
+  state.provisionalCredit = (state.reason === "fraud" && withinCreditWindow)
+    ? Math.min(amount, PROVISIONAL_CREDIT_CAP)
+    : 0;
+
+  updateSummary();
+}
+
+function updateSummary() {
+  $("summary-transaction").textContent = state.selectedTxn
+    ? `${state.selectedTxn.merchant} (${money(state.selectedTxn.amount)})` : "—";
+  $("summary-reason").textContent = state.reason ? reasonLabel(state.reason) : "—";
+  $("summary-priority").innerHTML = state.priority
+    ? `<span class="pill ${state.priority === "high" ? "high" : "standard"}">${state.priority === "high" ? "High" : "Standard"}</span>` : "—";
+  $("summary-credit").textContent = state.priority ? money(state.provisionalCredit) : "—";
+}
+
+function reasonLabel(r) {
+  return { fraud: "Unauthorized / Fraud", billing: "Billing error", goods: "Goods not received", subscription: "Cancelled subscription" }[r];
+}
+
+// ── Panel 5 — submit (AC: case reference only issued after full validation) ─
+$("submit-case").addEventListener("click", () => {
+  $("err-submit").textContent = "";
+  if (!state.selectedTxn || !state.reason || state.description.length < 20) {
+    $("err-submit").textContent = "Some required information is missing — please review the sections above.";
+    return;
+  }
+  if (state.selectedTxn.amount > HIGH_VALUE_THRESHOLD && !/^\d{4}$/.test(state.secondarySsn4)) {
+    $("err-submit").textContent = "Secondary verification is required for this dispute amount.";
+    return;
+  }
+
+  const digits = Math.floor(100000 + Math.random() * 899999);
+  const letters = String.fromCharCode(65 + Math.floor(Math.random() * 26)) + String.fromCharCode(65 + Math.floor(Math.random() * 26));
+  state.caseReference = `CASE-${digits}-${letters}`;
+
+  setPanelState("panel-review", "done");
+  $("case-reference").textContent = state.caseReference;
+  $("final-provisional-credit").textContent = money(state.provisionalCredit);
+  $("panel-confirmation").classList.remove("hidden");
+  window.scrollTo({ top: $("panel-confirmation").offsetTop - 20, behavior: "smooth" });
+});
+</script>
+</body>
+</html>
