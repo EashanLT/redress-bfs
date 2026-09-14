@@ -1,0 +1,30 @@
+{
+  "test_id": "b66d8c18-006b-4b07-963a-dbfaaad5b6c7",
+  "project_id": "01J53F9JKNFETEGASW2YJBDQ22",
+  "folder_id": "01KAY83JCYE8TYM0KNWB15AMT7",
+  "org_id": "550422",
+  "session_name": "web-fraud-filed-after-60-days-and-within-90-days-opens",
+  "commit_id": "822eefb3-d70f-4fb5-9f26-f842d9dfb5a5",
+  "testcase_id": "01M2G00VZ9A409JVPN642Q82CJ",
+  "executions": [
+    {
+      "execution_id": "29f4018c-79cc-4da5-81bc-8e0f179c7a63",
+      "run_kind": "author",
+      "status": "passed",
+      "valid": true,
+      "at": "2026-09-14T13:06:41.249Z"
+    },
+    {
+      "execution_id": "f8b1bc7c-c6ad-41b4-934d-b089dba263ed",
+      "run_kind": "author",
+      "status": "passed",
+      "at": "2026-09-14T13:14:09.403Z"
+    },
+    {
+      "execution_id": "cf96af1a-e982-4204-b762-a8d05b0c6405",
+      "run_kind": "author",
+      "status": "passed",
+      "at": "2026-09-14T13:16:47.680Z"
+    }
+  ]
+}

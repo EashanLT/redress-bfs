@@ -1,0 +1,127 @@
+name: Redress — Dispute Case Assurance
+
+# Manual by default: Kane runs consume credits and need the app already
+# deployed, so this does not fire on every push. Trigger it from the
+# Actions tab ("Run workflow"), or uncomment one of the automatic triggers
+# below once you've deployed and are ready for hands-off runs.
+on:
+  workflow_dispatch:
+    inputs:
+      app_url:
+        description: "URL of the deployed Redress app to test against"
+        required: false
+        default: "https://eashanlt.github.io/redress-bfs/"
+
+  # Fire once GitHub Pages finishes deploying, so tests never race a stale
+  # build. Rename the workflow under `workflows:` if your Pages workflow is
+  # named differently.
+  #
+  # workflow_run:
+  #   workflows: ["pages-build-deployment"]
+  #   types: [completed]
+
+  # Nightly regression pack for a compliance-relevant BFS suite. Adjust the
+  # cadence to match how often case-filing rules actually change.
+  #
+  # schedule:
+  #   - cron: "30 3 * * *"
+
+jobs:
+  case-assurance:
+    runs-on: ubuntu-latest
+    env:
+      LT_USERNAME: ${{ secrets.KANE_USERNAME }}
+      LT_ACCESS_KEY: ${{ secrets.KANE_ACCESS_KEY }}
+      APP_URL: ${{ github.event.inputs.app_url || 'https://eashanlt.github.io/redress-bfs/' }}
+
+    steps:
+      # tests/output-*/ recordings (once generated — see README) must be
+      # committed for coverage and deterministic CI replay to work.
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Kane drives real Chrome via the DevTools Protocol.
+      - name: Set up Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+
+      - name: Install Kane CLI
+        run: npm install -g @testmuai/kane-cli@latest
+
+      # Batch-run every committed *_test.md as ONE execution → one sealed
+      # evidence pack. Auth is passed INLINE — never `kane-cli login` in CI,
+      # since that opens an interactive browser OAuth flow.
+      - name: Run case-filing test suite
+        working-directory: tests
+        run: |
+          kane-cli testrun run \
+            --headless \
+            --on-failure continue \
+            --parallel 4 \
+            --username "$LT_USERNAME" \
+            --access-key "$LT_ACCESS_KEY"
+
+      - name: Generate coverage report
+        if: always()
+        working-directory: tests
+        run: |
+          kane-cli cover || true
+          kane-cli cover --json > coverage.json || true
+
+      # BFS dispute evidence often needs to hold up under audit/compliance
+      # review, so fail loudly (a workflow warning, visible without opening
+      # the artifact) rather than silently shipping an incomplete pack.
+      - name: Validate evidence pack integrity
+        if: always()
+        working-directory: tests
+        run: |
+          for pack in .testmuai/evidence/*.evidence; do
+            [ -e "$pack" ] || continue
+            echo "Validating $pack"
+            kane-cli evidence validate "$pack" --profile L1 --json \
+              > "${pack%.evidence}.validate.json" || echo "::warning::$pack failed L1 validation"
+          done
+
+      # Surface the coverage panel directly in the run summary, so a
+      # reviewer can see proven-vs-owed coverage without downloading an
+      # artifact first.
+      - name: Post coverage to job summary
+        if: always()
+        working-directory: tests
+        run: |
+          {
+            echo "## Redress assurance — coverage"
+            echo '```'
+            kane-cli cover || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload evidence pack
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: redress-evidence
+          path: |
+            tests/.testmuai/evidence/*.evidence
+            tests/.testmuai/evidence/**/*
+            tests/**/.testmuai/evidence/**
+            tests/output-*/**
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload coverage & validation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: redress-coverage
+          path: |
+            tests/coverage.json
+            tests/.testmuai/evidence/*.validate.json
+          if-no-files-found: warn
+          retention-days: 30

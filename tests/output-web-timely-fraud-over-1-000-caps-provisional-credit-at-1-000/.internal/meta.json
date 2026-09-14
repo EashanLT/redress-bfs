@@ -1,0 +1,24 @@
+{
+  "test_id": "3161fcc3-b648-48ac-98f2-db08b5e25752",
+  "project_id": "01J53F9JKNFETEGASW2YJBDQ22",
+  "folder_id": "01KAY83JCYE8TYM0KNWB15AMT7",
+  "org_id": "550422",
+  "session_name": "web-timely-fraud-over-1-000-caps-provisional-credit-at-1-000",
+  "commit_id": "62740bb6-8207-423c-8670-463bb604959d",
+  "testcase_id": "01M2G0ECDE9DPBW041TAMHJX46",
+  "executions": [
+    {
+      "execution_id": "624317ad-68a4-451b-89d7-19eaa8411e86",
+      "run_kind": "author",
+      "status": "passed",
+      "valid": true,
+      "at": "2026-09-14T13:16:06.493Z"
+    },
+    {
+      "execution_id": "cf96af1a-e982-4204-b762-a8d05b0c6405",
+      "run_kind": "author",
+      "status": "passed",
+      "at": "2026-09-14T13:16:47.697Z"
+    }
+  ]
+}
